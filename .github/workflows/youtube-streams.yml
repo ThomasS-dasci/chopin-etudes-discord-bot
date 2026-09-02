@@ -1,0 +1,48 @@
+name: Check YouTube Livestream
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-stream:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check livestream
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_CHANNEL_ID: ${{ secrets.YOUTUBE_CHANNEL_ID }}
+          STREAM_NOTIFICATION_CHANNEL_ID: ${{ secrets.STREAM_NOTIFICATION_CHANNEL_ID }}
+          STREAM_NOTIFICATION_ROLE_ID: ${{ secrets.STREAM_NOTIFICATION_ROLE_ID }}
+        run: python youtube_streams.py
+
+      - name: Save stream state
+        run: |
+          if [ -z "$(git status --porcelain youtube_stream_state.json)" ]; then
+            echo "No stream state changes."
+            exit 0
+          fi
+
+          git config user.name "The Conductor"
+          git config user.email "actions@github.com"
+
+          git add youtube_stream_state.json
+          git commit -m "Update YouTube stream state"
+          git push
